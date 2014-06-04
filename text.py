@@ -20,11 +20,13 @@ hedor = ForAll( [z3_x, z3_y], Implies( HedorFunction( z3_x, z3_y ), Or( WumpusFu
 
 reglas = And(pozo, hedor)
 
-persepciones_de_la_casilla = And( Not( BrisaFunction( 1, 1 ) ), Not( HedorFunction( 1, 1 ) ), Not( WumpusFunction( 1, 1 ) ), Not( PozoFunction( 1, 1 ) ) )
+persepciones_de_la_casilla = And( Not( BrisaFunction( 1, 1 ) ), Not( HedorFunction( 1, 1 ) ) )
 
 persepciones_mas_reglas = And( reglas, persepciones_de_la_casilla )
 
-casilla_segura_pregunta_pregunta = And(Not( BrisaFunction( z3_x + 1, z3_y ) ), Not( HedorFunction( z3_x + 1, z3_y ) ), Not( WumpusFunction( z3_x + 1, z3_y ) ), Not( PozoFunction( z3_x + 1, z3_y ) ) )
+#ForAll([z3_x, z3_y], SeguraFunction(z3_x, z3_y) = )
+
+casilla_segura_pregunta_pregunta = And(Not( BrisaFunction( 1, 1 ) ), Not( HedorFunction( 1, 1 ) ) )
 
 coso = Implies( persepciones_mas_reglas, casilla_segura_pregunta_pregunta ) 
 
