@@ -1,9 +1,26 @@
 from z3 import *
+from cStringIO import StringIO
 
 z3_x = Int('z3_x')
 z3_y = Int('z3_x')
 
+def prueba(coso):
 
+	old_stdout = sys.stdout
+	sys.stdout = mystdout = StringIO()
+
+	prove(coso)
+
+	buffereses = mystdout.getvalue()
+
+	lines = buffereses.rstrip().split('\n')
+
+	sys.stdout = old_stdout
+
+	if lines[0] == "counterexample":
+		return False
+	elif lines[0] == "proved":
+		return True
 
 BrisaFunction = Function('BrisaFunction', IntSort(), IntSort(), BoolSort())
 PozoFunction = Function('PozoFunction', IntSort(), IntSort(), BoolSort())
@@ -32,11 +49,13 @@ reglas = And( reglas, persepciones_de_la_casilla )
 
 coso = Implies( reglas, Not(PozoFunction( 2 , 1) )) 
 
-prove(coso)
+#prove(coso)
 
-coso = Implies( reglas, Not(WumpusFunction( 2 , 1) )) 
+coso = Implies( reglas, WumpusFunction( 2 , 1) ) 
 
-prove(coso)
+affs = prueba(coso)
+
+print affs
 
 
 '''s = Solver()

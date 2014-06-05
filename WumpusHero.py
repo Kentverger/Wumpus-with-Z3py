@@ -1,26 +1,41 @@
 import sys
 import re
 from z3 import *
-#import pygame
-#import time
+import pygame
+import time
+from cStringIO import StringIO
 
-#pygame.init()
+pygame.init()
 
-#pygame.mixer.music.load('lol.ogg')
-#pygame.mixer.music.play()
-#time.sleep(1.5)
+pygame.mixer.music.load('lol.ogg')
+pygame.mixer.music.play()
+time.sleep(1.5)
 
-a = Bool("Avanzar")
-ag = Bool("Agarrar")
+z3_x = Int('z3_x')
+z3_y = Int('z3_x')
 
-z3_x = Ints('z3_x')
-z3_y = Ints('z3_x')
+
 
 BrisaFunction = Function('BrisaFunction', IntSort(), IntSort(), BoolSort())
 PozoFunction = Function('PozoFunction', IntSort(), IntSort(), BoolSort())
+HedorFunction = Function('HedorFunction', IntSort(), IntSort(), BoolSort())
+WumpusFunction = Function('WumpusFunction', IntSort(), IntSort(), BoolSort())
+SeguraFunction = Function('SeguraFunction', IntSort(), IntSort(), BoolSort())
+ResplandorFunction = Function('ResplandorFunction', IntSort(), IntSort(), BoolSort())
+OroFunction = Function('OroFunction', IntSort(), IntSort(), BoolSort())
 
 #Para todo x y que tenga brisa implica que hay un pozo en los adyacentes
-r1 = ForAll( [z3_x, z3_y], Implies( BrisaFunction( z3_x, z3_y ), Or( PozoFunction( z3_x + 1, z3_y ), PozoFunction( z3_x - 1, z3_y ), PozoFunction( z3_x, z3_y + 1 ), PozoFunction( z3_x, z3_y - 1 ) ) ) )
+pozo = ForAll( z3_x, ForAll(z3_y, Implies( BrisaFunction( z3_x, z3_y ), Or( PozoFunction( z3_x + 1, z3_y ), PozoFunction( z3_x - 1, z3_y ), PozoFunction( z3_x, z3_y + 1 ), PozoFunction( z3_x, z3_y - 1 ) ) ) ) )
+no_pozo = ForAll( [z3_x, z3_y], Implies( Not(BrisaFunction( z3_x, z3_y )), And( Not(PozoFunction( z3_x + 1, z3_y )), Not(PozoFunction( z3_x - 1, z3_y )), Not(PozoFunction( z3_x, z3_y + 1 )), Not(PozoFunction( z3_x, z3_y - 1 ) ) ) ) )
+
+hedor = ForAll( z3_x, ForAll( z3_y, Implies( HedorFunction( z3_x, z3_y ), Or( WumpusFunction( z3_x + 1, z3_y ), WumpusFunction( z3_x - 1, z3_y ), WumpusFunction( z3_x, z3_y + 1 ), WumpusFunction( z3_x, z3_y - 1 ) ) ) ))
+no_hedor = ForAll( [z3_x, z3_y], Implies( Not(HedorFunction( z3_x, z3_y )), And( Not(WumpusFunction( z3_x + 1, z3_y )), Not(WumpusFunction( z3_x - 1, z3_y )), Not(WumpusFunction( z3_x, z3_y + 1 )), Not(WumpusFunction( z3_x, z3_y - 1 ) ) ) ) )
+
+casilla_segura = ForAll([z3_x, z3_y], Implies( And( Not( BrisaFunction( z3_x, z3_y ) ), Not( HedorFunction( z3_x, z3_y ) ), Not( PozoFunction( z3_x, z3_y ) ), Not( WumpusFunction( z3_x, z3_y ) ) ), SeguraFunction( z3_x, z3_y ) ) )
+
+casilla_con_oro = ForAll([z3_x, z3_y], Implies(ResplandorFunction(z3_x, z3_y), OroFunction(z3_x, z3_y) ) )
+
+reglas = And(pozo, hedor, no_pozo, no_hedor)
 
 class Casilla:
 	def __init__(self, visitada, precepcion, segura, x, y):
@@ -52,8 +67,8 @@ class Lifo:
         return k
 
 mapa = Lifo()
-x = 0
-y = 0
+x = 1
+y = 1
 
 ORIENTACION_NORTE = 1
 ORIENTACION_SUR = 2
@@ -111,14 +126,18 @@ def agarra():
 	sys.stdout.write("Agarrar\n")
 	sys.stdout.flush()
 
-def prueba(coso, otrocoso):
-	s = Solver()
-	s.add(coso)
-	s.check()
+def prueba(coso):
 
-	var = s.model()
+	old_stdout = sys.stdout
+	sys.stdout = mystdout = StringIO()
 
-	return var[otrocoso]
+	prove(coso)
+
+	cadena = sys.stdout.readline()
+
+	sys.stdout = old_stdout
+
+	return cadena
 
 def regresa():
 
@@ -140,14 +159,13 @@ while True:
 		m = re.findall('\(no\)|\(si\)', line)
 		if len(m) != 0:
 			if m[0] == "(si)":
-				h = BoolVal(True)
+				h = HedorFunction(x, y)
 			else:
-				h = BoolVal(False)
-
+				h = Not(HedorFunction(x, y))
 			if m[1] == "(si)":
-				b = BoolVal(True)
+				b = BrisaFunction(x,y)
 			else:
-				b = BoolVal(False)
+				b = Not(BrisaFunction(x,y))
 
 			if m[2] == "(si)":
 				r = BoolVal(True)
@@ -159,15 +177,15 @@ while True:
 			else:
 				g = BoolVal(False)
 
-			hedor = Implies( h, Not( a ) )
-			brisa = Implies( b, Not( a ) )
-			golpe = Implies( g, Not( a ) )
-			resplandor = Implies( r, ag )
+			reglas = And(reglas, h, b)
 
-			brisa_o_hedor = And(hedor, brisa)
+			#prueba si hay hedor o brisa, para saber si avanzar
+			coso = Implies(reglas, Or(Not(HedorFunction(x+1,y)), Not(BrisaFunction(x+1,y))))
+			prueba(coso)
+
 
 			#avanza hasta no encontar brisa, hedor o esuchar un golpe
-			if not prueba(brisa_o_hedor, a):
+			'''if not prueba(brisa_o_hedor, a):
 				c = Casilla(True, [h, b, r, g], True, x, y)
 				mapa.push(c)
 				avanza()
@@ -178,7 +196,7 @@ while True:
 
 			if prueba(golpe, a):
 				regresa()
-				pass
+				pass '''
 
 	elif line.find("EPISODE_ENDED") != -1:
 		break
